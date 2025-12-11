@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>หน้าแรก - ระบบแจ้งเหตุ มข.</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --kku-primary: #8B4513;
+            --kku-secondary: #D2691E;
+            --kku-light: #F5E6D3;
+            --kku-dark: #654321;
+            --kku-accent: #FF8C00;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --navbar-height: 72px;
+        }
+
+        /* Pulse animation for new markers */
+        @keyframes pulse {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes markerPulse {
+            0%, 100% { box-shadow: 0 2px 6px rgba(220,53,69,0.3); }
+            50% { box-shadow: 0 0 20px rgba(220,53,69,0.8); }
+        }
+
+        .new-marker-pulse {
+            animation: markerPulse 1s ease-in-out 3;
+        }
+
+        * {
+            font-family: 'Prompt', sans-serif;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden; /* prevent page scrolling */
+        }
+
+        body {
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header: hidden by default on mobile/tablet; shown on desktop at top */
+        .navbar-kku {
+            background: linear-gradient(135deg, var(--kku-primary) 0%, var(--kku-secondary) 100%);
+            padding: 0.6rem 0.8rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1020;
+            color: white;
+            display: none; /* default hide (phones/tablets) */
+        }
+
+        .navbar-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .navbar-kku .navbar-brand {
+            font-weight: 700;
+            font-size: 1rem;
+            color: white !important;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            white-space: nowrap;
+        }
+
+        .navbar-kku .navbar-brand i {
+            font-size: 1.3rem;
+        }
+
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .navbar-right .btn {
+            font-size: 0.7rem;
+            padding: 0.3rem 0.5rem;
+            white-space: nowrap;
+            font-weight: 600;
+            color: #654321;
+        }
+
+        .navbar-text {
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.85);
+            margin: 0.2rem 0 0;
+            display: none; /* ซ่อนใน mobile */
+        }
+
+        /* Desktop navbar */
+        @media (min-width: 768px) {
+            .navbar-kku {
+                padding: 0.8rem 1.2rem;
+            }
+            .navbar-kku .navbar-brand {
+                font-size: 1.2rem;
+            }
+            .navbar-kku .navbar-brand i {
+                font-size: 1.5rem;
+            }
+            .navbar-right .btn {
+                font-size: 0.8rem;
+                padding: 0.4rem 0.8rem;
+            }
+            .navbar-text {
+                display: block;
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Main Container */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+            height: 100vh;
+            padding-bottom: 0; /* no reserved space; buttons float over map */
+        }
+
+        /* Map Section - full viewport height */
+        .map-section {
+            flex: 1 1 auto;
+            position: relative;
+            overflow: hidden;
+            height: 100vh; /* ensure map is visible on public page */
+        }
+
+        #map {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .map-overlay {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            background: white;
+            padding: 0.75rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            font-size: 0.85rem;
+            z-index: 400;
+        }
+
+        /* Floating Report Button */
+        .btn-float-report {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 500;
+            border-radius: 999px;
+            padding: 0.6rem 1rem;
+            font-weight: 700;
+            box-shadow: 0 6px 16px rgba(220,53,69,0.25);
+            background: linear-gradient(135deg, var(--danger) 0%, #fd7e14 100%);
+            border: none;
+            color: #fff;
+        }
+
+        /* Floating Staff Button (mobile/tablet) */
+        .btn-float-staff {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 500;
+            border-radius: 999px;
+            padding: 0.5rem 0.9rem;
+            font-weight: 700;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            background: #fff;
+            border: 2px solid var(--kku-primary);
+            color: var(--kku-primary);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        @media (min-width: 768px) {
+            .btn-float-report { padding: 0.5rem 1.2rem; }
+        }
+
+        /* Content Section - hidden for full-screen map */
+        .content-section {
+            display: none !important;
+        }
+
+        /* Alert Box */
+        .alert-box {
+            background: linear-gradient(135deg, var(--danger) 0%, #fd7e14 100%);
+            color: white;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 12px rgba(220,53,69,0.2);
+        }
+
+        .alert-box h6 {
+            margin: 0 0 0.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .alert-box p {
+            margin: 0;
+            font-size: 0.9rem;
+            opacity: 0.95;
+        }
+
+        /* Button Report */
+        .btn-report {
+            background: linear-gradient(135deg, var(--danger) 0%, #fd7e14 100%);
+            border: none;
+            color: white;
+            padding: 1rem;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1.05rem;
+            box-shadow: 0 4px 15px rgba(220,53,69,0.3);
+            transition: all 0.3s ease;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .btn-report:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220,53,69,0.4);
+            color: white;
+        }
+
+        .btn-report:active {
+            transform: translateY(0);
+        }
+
+        /* Filter Section */
+        .filter-section {
+            margin-bottom: 1rem;
+        }
+
+        .filter-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--kku-primary);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        .btn-filter {
+            background: white;
+            border: 2px solid #ddd;
+            color: #666;
+            padding: 0.6rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .btn-filter:hover {
+            border-color: var(--kku-primary);
+            color: var(--kku-primary);
+        }
+
+        .btn-filter.active {
+            background: var(--kku-primary);
+            color: white;
+            border-color: var(--kku-primary);
+        }
+
+        /* Stats Cards */
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 0.75rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid #eee;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--kku-primary);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        /* Incidents List */
+        .incidents-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .incidents-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--kku-primary);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .incident-item {
+            background: white;
+            padding: 0.75rem;
+            border-radius: 10px;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid var(--kku-secondary);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .incident-item:active {
+            transform: scale(0.98);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        .incident-type {
+            display: inline-block;
+            background: var(--kku-light);
+            color: var(--kku-primary);
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .incident-description {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+            line-height: 1.3;
+        }
+
+        .incident-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #999;
+        }
+
+        .incident-status {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        .status-waiting {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-processing {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .status-resolved {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        /* Modal Styles */
+        .modal-content {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin: 0.5rem;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--kku-primary) 0%, var(--kku-secondary) 100%);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 15px 15px 0 0;
+        }
+
+        .modal-header .modal-title {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .modal-header .btn-close {
+            filter: brightness(0) invert(1);
+        }
+
+        .modal-body {
+            padding: 1rem;
+            max-height: 75vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 0.85rem;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--kku-primary);
+            margin-bottom: 0.4rem;
+            font-size: 0.85rem;
+            display: block;
+        }
+
+        .form-control, .form-select {
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 0.7rem 0.9rem;
+            font-size: 16px; /* ป้องกัน iOS zoom */
+            transition: border-color 0.3s;
+            width: 100%;
+            -webkit-appearance: none;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--kku-primary);
+            box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.1);
+            outline: none;
+        }
+
+        .form-control::placeholder {
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        /* File input styling */
+        .form-control[type="file"] {
+            padding: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        /* Textarea */
+        textarea.form-control {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        /* Location display */
+        .location-display {
+            background: #f8f9fa;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #555;
+            border: 1px dashed #ddd;
+        }
+
+        /* Desktop Modal */
+        @media (min-width: 768px) {
+            .modal-content {
+                margin: 1rem auto;
+                max-width: 500px;
+            }
+            .modal-header {
+                padding: 1.25rem;
+            }
+            .modal-header .modal-title {
+                font-size: 1.1rem;
+            }
+            .modal-body {
+                padding: 1.5rem;
+            }
+            .form-label {
+                font-size: 0.95rem;
+            }
+        }
+
+        /* Buttons */
+        .btn-submit {
+            background: linear-gradient(135deg, var(--kku-primary) 0%, var(--kku-secondary) 100%);
+            border: none;
+            color: white;
+            padding: 0.85rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            width: 100%;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 69, 19, 0.3);
+            color: white;
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Secondary button */
+        .btn-secondary-custom {
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            color: #666;
+            padding: 0.7rem 1rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            width: 100%;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .btn-secondary-custom:hover {
+            background: #e0e0e0;
+            border-color: #ccc;
+        }
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 69, 19, 0.3);
+            color: white;
+        }
+
+        /* Toast Messages */
+        .toast-container {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 9999;
+            gap: 0.75rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toast {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-width: 280px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+
+        .toast.warning {
+            border-left: 4px solid var(--warning);
+        }
+
+        /* Scrollbar styling */
+        .content-section::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .content-section::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .content-section::-webkit-scrollbar-thumb {
+            background: var(--kku-secondary);
+            border-radius: 3px;
+        }
+
+        /* Tablet Adjustments */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .main-container {
+                flex-direction: row;
+            }
+
+            .map-section {
+                flex: 1 1 auto;
+                border-radius: 0;
+            }
+
+            .content-section { display: none !important; }
+
+            .filter-buttons { grid-template-columns: 1fr 1fr 1fr; }
+            .stats-container { grid-template-columns: 1fr 1fr 1fr; }
+        }
+
+        /* Desktop Adjustments: show top navbar, remove floating buttons spacing */
+        @media (min-width: 1024px) {
+            .navbar-kku { display: block; }
+            .main-container { height: calc(100vh - var(--navbar-height)); padding-bottom: 0; }
+            .map-section { height: 100%; }
+            .map-overlay { bottom: 15px; }
+            #floatingReport { bottom: 20px; }
+            #floatingStaff { display: none; }
+            .filter-buttons { grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; }
+            .stats-container { grid-template-columns: repeat(5, 1fr); }
+            .content-section { display: none !important; }
+        }
+
+        /* Safe area padding for notched devices */
+        @supports (padding: max(0px)) {
+            .navbar-kku {
+                padding-left: max(1rem, env(safe-area-inset-left));
+                padding-right: max(1rem, env(safe-area-inset-right));
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header (desktop only) -->
+    <div class="navbar-kku">
+        <div class="navbar-content">
+            <div class="navbar-brand">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>แจ้งเหตุ มข.</span>
+            </div>
+            <div class="navbar-right">
+                <a href="/dashboard" class="btn btn-light">
+                    <i class="fa-solid fa-shield-halved"></i> <span class="d-none d-sm-inline">แดชบอร์ด</span><span class="d-sm-none">เจ้าหน้าที่</span>
+                </a>
+            </div>
+        </div>
+        <div class="navbar-text">ระบบแจ้งเหตุฉุกเฉิน มหาวิทยาลัยขอนแก่น</div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Map Section -->
+        <div class="map-section">
+            <div id="map"></div>
+            <button type="button" id="floatingReport" class="btn btn-float-report">
+                <i class="fas fa-paper-plane"></i> แจ้งเหตุ
+            </button>
+            <!-- Floating Staff (mobile/tablet) -->
+            <a href="/dashboard" id="floatingStaff" class="btn btn-float-staff">
+                <i class="fa-solid fa-shield-halved"></i> เจ้าหน้าที่
+            </a>
+        </div>
+
+        <!-- Content Section -->
+        <div class="content-section">
+            <!-- Alert Box removed per request -->
+
+            <!-- Report Button hidden (using floating over map) -->
+            <button type="button" class="btn-report" id="btnReport" style="display:none">
+                <i class="fas fa-plus-circle"></i> แจ้งเหตุ
+            </button>
+
+            <!-- Filter Section (hidden for public minimal view) -->
+            <div class="filter-section" style="display:none"></div>
+
+            <!-- Stats (hidden for public minimal view) -->
+            <div class="stats-container" style="display:none"></div>
+
+            <!-- Incidents List (hidden for public minimal view) -->
+            <div class="incidents-list" style="display:none">
+                <div class="incidents-title">
+                    <i class="fas fa-list"></i> เหตุการณ์ล่าสุด
+                </div>
+                <div id="incidentsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div class="modal fade" id="reportModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-circle"></i> แจ้งเหตุฉุกเฉิน</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="reportForm" enctype="multipart/form-data">
+                        <!-- ประเภทเหตุการณ์ -->
+                        <div class="form-group">
+                            <label class="form-label">ประเภทเหตุการณ์ <span style="color: var(--danger);">*</span></label>
+                            <select class="form-select" id="incidentType" required>
+                                <option value="">-- เลือกประเภท --</option>
+                                <option value="accident">🚗 อุบัติเหตุ</option>
+                                <option value="medical">➕ เหตุสุขภาพ/การแพทย์</option>
+                                <option value="conflict">⚔️ ความขัดแย้ง/ทะเลาะวิวาท</option>
+                                <option value="fire">🔥 ไฟไหม้</option>
+                                <option value="help">🆘 ขอความช่วยเหลืออื่นๆ</option>
+                            </select>
+                        </div>
+
+                        <!-- ระดับความรุนแรง -->
+                        <div class="form-group">
+                            <label class="form-label">ระดับความเร่งด่วน <span style="color: var(--danger);">*</span></label>
+                            <select class="form-select" id="severityLevel" required>
+                                <option value="">-- เลือกระดับ --</option>
+                                <option value="low">🟢 ไม่เร่งด่วน</option>
+                                <option value="medium">🟡 เร่งด่วนปานกลาง</option>
+                                <option value="high">🔴 เร่งด่วนมาก</option>
+                            </select>
+                        </div>
+
+                        <!-- รายละเอียด -->
+                        <div class="form-group">
+                            <label class="form-label">รายละเอียดเหตุการณ์</label>
+                            <textarea class="form-control" id="description" rows="2"
+                                      placeholder="อธิบายสิ่งที่เกิดขึ้น..."></textarea>
+                        </div>
+
+                        <!-- แนบรูป -->
+                        <div class="form-group">
+                            <label class="form-label">📷 แนบรูปภาพ (ถ้ามี)</label>
+                            <input type="file" class="form-control" id="image" accept="image/*" capture="environment">
+                            <div id="imagePreview" style="margin-top:8px;display:none;">
+                                <img id="previewImg" style="max-width:100%;max-height:150px;border-radius:8px;"/>
+                            </div>
+                        </div>
+
+                        <!-- ตำแหน่ง -->
+                        <div class="form-group">
+                            <label class="form-label">📍 ตำแหน่งของคุณ</label>
+                            <div class="location-display">
+                                <span id="locationDisplay">กำลังค้นหาตำแหน่ง...</span>
+                            </div>
+                            <input type="hidden" id="latitude">
+                            <input type="hidden" id="longitude">
+                        </div>
+
+                        <hr style="margin: 1rem 0; border-color: #eee;">
+
+                        <!-- ข้อมูลผู้แจ้ง (ย่อ/ขยาย) -->
+                        <div class="form-group">
+                            <button type="button" class="btn-secondary-custom" onclick="toggleContactInfo()" id="toggleContactBtn">
+                                <i class="fas fa-user"></i> เพิ่มข้อมูลผู้แจ้ง (ไม่จำเป็น) <i class="fas fa-chevron-down" id="contactChevron"></i>
+                            </button>
+                        </div>
+
+                        <div id="contactInfoSection" style="display:none;">
+                            <div class="form-group">
+                                <label class="form-label">ชื่อผู้แจ้ง</label>
+                                <input type="text" class="form-control" id="reporterName" 
+                                    placeholder="ชื่อ-นามสกุล" autocomplete="name">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">เบอร์โทรติดต่อกลับ</label>
+                                <input type="tel" class="form-control" id="reporterContact" 
+                                    placeholder="0XX-XXX-XXXX" autocomplete="tel" inputmode="tel">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-submit" id="submitBtn">
+                            <i class="fas fa-paper-plane"></i> ส่งแจ้งเหตุ
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Incident Detail Modal -->
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-info-circle"></i> รายละเอียดเหตุการณ์</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="detailContent"></div>
+                <div class="modal-body" id="chatSection" style="display:none">
+                    <div style="margin:8px 0;font-weight:700;color:var(--kku-primary)"><i class="fa-solid fa-comments"></i> แชทกับเจ้าหน้าที่</div>
+                    <div id="chatMessages" style="max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:8px;padding:8px;background:#fafafa"></div>
+                    <div id="chatInputRow" style="display:flex;gap:8px;margin-top:8px">
+                        <input type="text" id="chatInput" class="form-control" placeholder="พิมพ์ข้อความถึงเจ้าหน้าที่..." />
+                        <button type="button" id="chatSend" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                    <div id="chatNotice" style="display:none;color:#666;font-size:0.9rem;margin-top:6px">เฉพาะเจ้าของเหตุที่มีสิทธิ์เท่านั้นจึงจะส่งข้อความได้</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // ====== Variables ======
+        let map, selectedMarker, allIncidents = [];
+        let currentFilter = 'all';
+        let selectedLocation = null;
+        let currentChatIncidentId = null;
+        const KKU_CENTER = [16.473, 102.823];
+        const INCIDENT_TYPES = {
+            accident: '🚗 อุบัติเหตุ',
+            medical: '⚕️ เหตุสุขภาพ',
+            conflict: '⚔️ ความขัดแย้ง',
+            fire: '🔥 ไฟไหม้',
+            help: '🆘 ขอความช่วยเหลือ'
+        };
+        const STATUS_MAP = {
+            'รอการดำเนินการ': 'waiting',
+            'กำลังดำเนินการ': 'processing',
+            'ดำเนินการแล้ว': 'resolved'
+        };
+
+        // ====== Initialize ======
+        function init() {
+            initMap();
+            loadIncidents();
+            initRealtime();
+            setupEventListeners();
+            setInterval(loadIncidents, 30000);
+        }
+
+        // ====== Map Functions ======
+        let markersLayer = L.layerGroup();
+        function initMap() {
+            map = L.map('map').setView(KKU_CENTER, 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+            markersLayer.addTo(map);
+
+            // ป้องกัน map click เมื่อ modal เปิดอยู่
+            map.on('click', (e) => {
+                // ถ้า modal เปิดอยู่ ไม่ต้องทำอะไร
+                const reportModal = document.getElementById('reportModal');
+                if (reportModal.classList.contains('show')) return;
+
+                selectedLocation = e.latlng;
+                updateLocationDisplay();
+                if (selectedMarker) map.removeLayer(selectedMarker);
+                selectedMarker = L.circleMarker(e.latlng, {
+                    radius: 8,
+                    fillColor: '#dc3545',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map);
+            });
+        }
+
+        function updateLocationDisplay() {
+            if (!selectedLocation) return;
+            const { lat, lng } = selectedLocation;
+            document.getElementById('latitude').value = lat.toFixed(6);
+            document.getElementById('longitude').value = lng.toFixed(6);
+            document.getElementById('locationDisplay').textContent = 
+                `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        }
+
+        // ====== API Functions ======
+        async function loadIncidents() {
+            try {
+                // ใช้ชุดข้อมูลเดียวกับหน้าแดชบอร์ด แล้วกรองฝั่ง client ให้ตรงกัน
+                const response = await fetch('/api/incidents');
+                const incidents = await response.json();
+                allIncidents = Array.isArray(incidents)
+                    ? incidents.filter(i => i && i.status !== 'ดำเนินการแล้ว')
+                    : [];
+                renderMarkers();
+            } catch (error) {
+                // silent in minimal view
+            }
+        }
+
+        let eventSource = null;
+        function initRealtime() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            try {
+                eventSource = new EventSource('/api/incidents/stream');
+                
+                // หน้าผู้ใช้ทั่วไป: อัปเดตหมุดเงียบๆ ไม่มี notification/เสียง
+                eventSource.addEventListener('incident-created', (e) => {
+                    try {
+                        const incident = JSON.parse(e.data);
+                        if (!allIncidents.find(i => i.id === incident.id)) {
+                            allIncidents.push(incident);
+                        }
+                        addSingleMarker(incident);
+                    } catch (err) {
+                        loadIncidents();
+                    }
+                });
+                
+                eventSource.addEventListener('incident-updated', (e) => {
+                    try {
+                        const incident = JSON.parse(e.data);
+                        const idx = allIncidents.findIndex(i => i.id === incident.id);
+                        if (idx >= 0) {
+                            allIncidents[idx] = incident;
+                        } else {
+                            allIncidents.push(incident);
+                        }
+                        renderMarkers();
+                    } catch (err) {
+                        loadIncidents();
+                    }
+                });
+                
+                eventSource.addEventListener('incident-deleted', (e) => {
+                    try {
+                        const deletedId = JSON.parse(e.data);
+                        allIncidents = allIncidents.filter(i => i.id !== deletedId);
+                        renderMarkers();
+                    } catch (err) {
+                        loadIncidents();
+                    }
+                });
+
+                eventSource.onerror = () => {
+                    console.log('SSE connection error, reconnecting in 3s...');
+                    eventSource.close();
+                    setTimeout(initRealtime, 3000);
+                };
+
+                // Realtime chat updates
+                eventSource.addEventListener('message-created', (e) => {
+                    try {
+                        const msg = JSON.parse(e.data);
+                        if (currentChatIncidentId && msg.incidentId === currentChatIncidentId) {
+                            const box = document.getElementById('chatMessages');
+                            const role = (msg.author || '').toString().toUpperCase();
+                            const isOfficer = role === 'OFFICER';
+                            const name = isOfficer ? 'เจ้าหน้าที่' : 'ผู้แจ้ง';
+                            const color = isOfficer ? '#0d6efd' : '#dc3545';
+                            const row = `<div style='margin:6px 0'><span style='font-weight:700;color:${color}'>${name}</span>: ${escapeHtml(msg.content)} <span style='color:#999;font-size:0.8em'>(${new Date(msg.createdAt).toLocaleTimeString('th-TH')})</span></div>`;
+                            box.insertAdjacentHTML('beforeend', row);
+                            box.scrollTop = box.scrollHeight;
+                        }
+                    } catch(err) {}
+                });
+            } catch (e) {
+                console.error('SSE not supported:', e);
+            }
+        }
+
+        // เพิ่ม marker เดี่ยวทันที (ไม่ต้อง clear ทั้งหมด)
+        function addSingleMarker(incident) {
+            if (incident.status === 'ดำเนินการแล้ว') return;
+            const borderColor = incident.status === 'กำลังดำเนินการ' ? '#ffc107' : '#dc3545';
+            const icon = L.divIcon({
+                html: `<div style="font-size:20px;width:36px;height:36px;background:white;border-radius:50%;border:3px solid ${borderColor};box-shadow:0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">${getTypeEmoji(incident.type)}</div>`,
+                className: 'custom-div-icon', iconSize: [36, 36], iconAnchor: [18, 36]
+            });
+            L.marker([incident.latitude, incident.longitude], { icon })
+                .addTo(markersLayer)
+                .on('click', () => showDetail(incident.id));
+        }
+
+        async function submitReport(formData) {
+            try {
+                const body = new FormData();
+                
+                // เพิ่มข้อมูลทีละตัว
+                body.append('type', formData.type);
+                body.append('severityLevel', formData.severityLevel);
+                body.append('reporter', formData.reporter);
+                body.append('reporterContact', formData.reporterContact);
+                body.append('description', formData.description);
+                body.append('latitude', formData.latitude);
+                body.append('longitude', formData.longitude);
+                body.append('status', formData.status);
+                
+                // เพิ่มรูปภาพถ้ามี
+                const imgInput = document.getElementById('image');
+                if (imgInput && imgInput.files && imgInput.files.length > 0) {
+                    body.append('image', imgInput.files[0]);
+                }
+                
+                const response = await fetch('/api/incidents/submit', { 
+                    method: 'POST', 
+                    body: body 
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 413) throw new Error('ไฟล์รูปมีขนาดใหญ่เกินกำหนด (สูงสุด 25MB)');
+                    try {
+                        const err = await response.json();
+                        throw new Error(err.message || 'ส่งไม่สำเร็จ');
+                    } catch(_) {
+                        throw new Error('ส่งไม่สำเร็จ กรุณาลองใหม่');
+                    }
+                }
+                
+                const data = await response.json();
+                if (data.editToken && data.incident && data.incident.id) {
+                    localStorage.setItem('incident_token_' + data.incident.id, data.editToken);
+                }
+                
+                showToast('📤 ส่งแจ้งเหตุสำเร็จ! เจ้าหน้าที่กำลังเดินทาง', 'success');
+                
+                // Reset form และ preview
+                document.getElementById('reportForm').reset();
+                document.getElementById('imagePreview').style.display = 'none';
+                document.getElementById('contactInfoSection').style.display = 'none';
+                
+                selectedLocation = null;
+                if (selectedMarker) map.removeLayer(selectedMarker);
+                
+                setTimeout(() => {
+                    bootstrap.Modal.getInstance(document.getElementById('reportModal')).hide();
+                    loadIncidents();
+                }, 500);
+            } catch (error) {
+                showToast('⚠️ ' + error.message, 'error');
+            }
+        }
+
+        // ====== Display Functions ======
+        function displayStats() {
+            const total = allIncidents.length;
+            const active = allIncidents.filter(i => i.status !== 'ดำเนินการแล้ว').length;
+            
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statActive').textContent = active;
+        }
+
+        function filterAndDisplayIncidents() { /* hidden in minimal view */ }
+
+        // ====== Utility Functions ======
+        async function showDetail(id) {
+            const incident = allIncidents.find(i => i.id === id);
+            if (!incident) return;
+            
+            const html = `
+                <div style="line-height: 1.8;">
+                    <p><strong>ประเภท:</strong> ${INCIDENT_TYPES[incident.type]}</p>
+                    <p><strong>รายละเอียด:</strong> ${incident.description}</p>
+                    <p><strong>สถานะ:</strong> <span class="incident-status status-${STATUS_MAP[incident.status] || 'waiting'}">${incident.status}</span></p>
+                    <p><strong>ระดับรุนแรง:</strong> ${incident.severityLevel}</p>
+                    <p><strong>ผู้แจ้ง:</strong> ${incident.reporter}</p>
+                    <p><strong>เบอร์ติดต่อ:</strong> ${incident.reporterContact}</p>
+                    <p><strong>เวลา:</strong> ${new Date(incident.createdAt).toLocaleString('th-TH')}</p>
+                    ${incident.imageUrl ? `<div style='margin:8px 0'><img src='${incident.imageUrl}' style='max-width:100%;border-radius:8px'/></div>` : ''}
+                    ${incident.officerNotes ? `<p><strong>หมายเหตุจากเจ้าหน้าที่:</strong> ${incident.officerNotes}</p>` : ''}
+                    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                        <a class="btn btn-sm btn-outline-primary" href="https://www.google.com/maps?q=${incident.latitude},${incident.longitude}" target="_blank"><i class="fa-solid fa-location-arrow"></i> นำทาง</a>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('detailContent').innerHTML = html;
+            // Init chat for this incident
+            currentChatIncidentId = id;
+            // ซ่อน chatSection ไว้ก่อน ให้ loadMessages() ตัดสินใจว่าจะแสดงหรือไม่
+            document.getElementById('chatSection').style.display = 'none';
+            const token = localStorage.getItem('incident_token_' + id);
+            if (token) {
+                document.getElementById('chatInputRow').style.display = 'flex';
+                document.getElementById('chatNotice').style.display = 'none';
+            } else {
+                // read-only chat view (ถ้ามีสิทธิ์ดู)
+                document.getElementById('chatInputRow').style.display = 'none';
+                document.getElementById('chatNotice').style.display = 'block';
+            }
+            await loadMessages(id);
+            new bootstrap.Modal(document.getElementById('detailModal')).show();
+        }
+
+        function timeAgo(dateString) {
+            const date = new Date(dateString);
+            const seconds = Math.floor((new Date() - date) / 1000);
+            if (seconds < 60) return 'เมื่อสักครู่';
+            if (seconds < 3600) return Math.floor(seconds / 60) + ' นาที';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + ' ชั่วโมง';
+            return Math.floor(seconds / 86400) + ' วัน';
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            document.getElementById('toastContainer').appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function renderMarkers() {
+            markersLayer.clearLayers();
+            // แสดงเฉพาะที่ยังไม่เสร็จ (รอการดำเนินการ, กำลังดำเนินการ)
+            const visible = allIncidents.filter(i => i.status !== 'ดำเนินการแล้ว');
+            visible.forEach(i => {
+                // กำหนดสีขอบตามสถานะ: รอ=แดง, กำลังดำเนินการ=เหลือง
+                const borderColor = i.status === 'กำลังดำเนินการ' ? '#ffc107' : '#dc3545';
+                const icon = L.divIcon({
+                    html: `<div style="font-size:20px;width:36px;height:36px;background:white;border-radius:50%;border:3px solid ${borderColor};box-shadow:0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">${getTypeEmoji(i.type)}</div>`,
+                    className: 'custom-div-icon', iconSize: [36, 36], iconAnchor: [18, 36]
+                });
+                const m = L.marker([i.latitude, i.longitude], { icon })
+                    .addTo(markersLayer)
+                    .on('click', () => showDetail(i.id));
+            });
+        }
+
+        function getTypeEmoji(t) {
+            switch (t) {
+                case 'accident': return '🚗';
+                case 'medical': return '➕';
+                case 'conflict': return '⚔️';
+                case 'fire': return '🔥';
+                case 'help': return '🆘';
+                default: return '📍';
+            }
+        }
+
+        async function updateStatus(id) {
+            // ไม่อนุญาตให้ผู้ใช้ทั่วไปอัปเดตสถานะ
+            showToast('กรุณาติดต่อเจ้าหน้าที่เพื่ออัปเดตสถานะ', 'info');
+        }
+        
+        // placeholder สำหรับ compatibility
+        function renderStatusControls(incident) {
+            return ''; // ไม่แสดงตัวเลือกสถานะในหน้าผู้ใช้ทั่วไป
+        }
+        
+        async function _unusedUpdateStatus(id) {
+            const sel = document.getElementById('status_'+id);
+            const token = localStorage.getItem('incident_token_' + id);
+            if (!sel || !token) return;
+            try {
+                const res = await fetch(`/api/incidents/${id}/status?token=${encodeURIComponent(token)}`, {
+                    method: 'PUT', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({status: sel.value})
+                });
+                if (!res.ok) throw new Error('update failed');
+                showToast('อัปเดตสถานะสำเร็จ','success');
+                loadIncidents();
+                bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();
+            } catch(e) { showToast('อัปเดตไม่สำเร็จ','error'); }
+        }
+
+        // ====== Event Listeners ======
+        function setupEventListeners() {
+            // Report button
+            document.getElementById('btnReport').addEventListener('click', () => {
+                if (!selectedLocation) {
+                    showToast('⚠️ กรุณาเลือกตำแหน่งบนแผนที่ก่อน', 'warning');
+                    return;
+                }
+                new bootstrap.Modal(document.getElementById('reportModal')).show();
+            });
+
+            // Floating report over map
+            document.getElementById('floatingReport').addEventListener('click', () => {
+                if (!selectedLocation) {
+                    showToast('⚠️ กรุณาแตะเลือกตำแหน่งบนแผนที่ก่อน', 'warning');
+                    return;
+                }
+                new bootstrap.Modal(document.getElementById('reportModal')).show();
+            });
+
+            // Form submit
+            document.getElementById('reportForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // ตรวจสอบตำแหน่ง
+                const lat = document.getElementById('latitude').value;
+                const lng = document.getElementById('longitude').value;
+                
+                if (!lat || !lng || !selectedLocation) {
+                    showToast('⚠️ กรุณาเลือกตำแหน่งบนแผนที่ก่อน', 'warning');
+                    return;
+                }
+                
+                // ตรวจสอบข้อมูลที่จำเป็น
+                const type = document.getElementById('incidentType').value;
+                const severity = document.getElementById('severityLevel').value;
+                
+                if (!type) {
+                    showToast('⚠️ กรุณาเลือกประเภทเหตุการณ์', 'warning');
+                    return;
+                }
+                if (!severity) {
+                    showToast('⚠️ กรุณาเลือกระดับความเร่งด่วน', 'warning');
+                    return;
+                }
+
+                // Disable ปุ่มระหว่างส่ง
+                const submitBtn = document.getElementById('submitBtn');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังส่ง...';
+
+                const formData = {
+                    type: type,
+                    severityLevel: severity,
+                    reporter: document.getElementById('reporterName').value || '',
+                    reporterContact: document.getElementById('reporterContact').value || '',
+                    description: document.getElementById('description').value || '',
+                    latitude: parseFloat(lat),
+                    longitude: parseFloat(lng),
+                    status: 'รอการดำเนินการ'
+                };
+                
+                await submitReport(formData);
+                
+                // Enable ปุ่มกลับ
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> ส่งแจ้งเหตุ';
+            });
+
+            // Filter buttons
+            document.querySelectorAll('.btn-filter').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentFilter = e.target.dataset.type;
+                    filterAndDisplayIncidents();
+                });
+            });
+
+            // Image preview
+            document.getElementById('image').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        document.getElementById('previewImg').src = e.target.result;
+                        document.getElementById('imagePreview').style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    document.getElementById('imagePreview').style.display = 'none';
+                }
+            });
+
+            // Chat send (requires token)
+            document.getElementById('chatSend').addEventListener('click', async () => {
+                if (!currentChatIncidentId) return;
+                const token = localStorage.getItem('incident_token_' + currentChatIncidentId);
+                const input = document.getElementById('chatInput');
+                const text = input.value.trim();
+                if (!text || !token) return;
+                try {
+                    const res = await fetch(`/api/incidents/${currentChatIncidentId}/messages?token=${encodeURIComponent(token)}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: text })
+                    });
+                    if (res.ok) {
+                        input.value = '';
+                        await loadMessages(currentChatIncidentId);
+                    }
+                } catch(e) {}
+            });
+        }
+
+        // Toggle contact info section
+        function toggleContactInfo() {
+            const section = document.getElementById('contactInfoSection');
+            const chevron = document.getElementById('contactChevron');
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                chevron.classList.remove('fa-chevron-down');
+                chevron.classList.add('fa-chevron-up');
+            } else {
+                section.style.display = 'none';
+                chevron.classList.remove('fa-chevron-up');
+                chevron.classList.add('fa-chevron-down');
+            }
+        }
+
+        // ====== Chat Functions ======
+        async function loadMessages(incidentId) {
+            const box = document.getElementById('chatMessages');
+            const chatSection = document.getElementById('chatSection');
+            const token = localStorage.getItem('incident_token_' + incidentId);
+            try {
+                let url = `/api/incidents/${incidentId}/messages`;
+                if (token) {
+                    url += `?token=${encodeURIComponent(token)}`;
+                }
+                const res = await fetch(url);
+                if (res.status === 403) {
+                    // ไม่มีสิทธิ์ดูข้อความ - ซ่อนส่วนแชท
+                    chatSection.style.display = 'none';
+                    return;
+                }
+                const messages = await res.json();
+                if (!Array.isArray(messages)) {
+                    chatSection.style.display = 'none';
+                    return;
+                }
+                // มีสิทธิ์ - แสดง chatSection
+                chatSection.style.display = 'block';
+                box.innerHTML = messages.map(m => {
+                    const role = (m.author || '').toString().toUpperCase();
+                    const isOfficer = role === 'OFFICER';
+                    const name = isOfficer ? 'เจ้าหน้าที่' : 'ผู้แจ้ง';
+                    const color = isOfficer ? '#0d6efd' : '#dc3545';
+                    return `<div style='margin:6px 0'><span style='font-weight:700;color:${color}'>${name}</span>: ${escapeHtml(m.content)} <span style='color:#999;font-size:0.8em'>(${new Date(m.createdAt).toLocaleTimeString('th-TH')})</span></div>`;
+                }).join('');
+                box.scrollTop = box.scrollHeight;
+            } catch(e) {
+                chatSection.style.display = 'none';
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>\"]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
+        }
+
+        // Start
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

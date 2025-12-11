@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>แดชบอร์ดเจ้าหน้าที่ - ระบบแจ้งเหตุ มข.</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --kku-primary: #8B4513;
+            --kku-secondary: #D2691E;
+            --kku-light: #F5E6D3;
+            --kku-dark: #654321;
+            --kku-accent: #FF8C00;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --navbar-height: 72px;
+        }
+
+        /* Pulse animation for new markers */
+        @keyframes pulse {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes markerPulse {
+            0%, 100% { box-shadow: 0 2px 6px rgba(220,53,69,0.3); }
+            50% { box-shadow: 0 0 20px rgba(220,53,69,0.8); }
+        }
+
+        .new-marker-pulse {
+            animation: markerPulse 1s ease-in-out 3;
+        }
+
+        * {
+            font-family: 'Prompt', sans-serif;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header: hidden by default on mobile/tablet; shown on desktop at top */
+        .navbar-kku {
+            background: linear-gradient(135deg, var(--kku-primary) 0%, var(--kku-secondary) 100%);
+            padding: 0.6rem 0.8rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1020;
+            color: white;
+            display: none; /* default hide (phones/tablets) */
+        }
+
+        .navbar-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .navbar-kku .navbar-brand {
+            font-weight: 700;
+            font-size: 1rem;
+            color: white !important;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            white-space: nowrap;
+        }
+
+        .navbar-kku .navbar-brand i {
+            font-size: 1.3rem;
+        }
+
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .navbar-right .badge {
+            font-size: 0.65rem;
+            padding: 0.3rem 0.5rem;
+        }
+
+        .navbar-right .btn {
+            font-size: 0.7rem;
+            padding: 0.3rem 0.5rem;
+            white-space: nowrap;
+        }
+
+        .navbar-text {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.85);
+            margin: 0.2rem 0 0;
+            display: none; /* ซ่อนใน mobile */
+        }
+
+        /* Desktop navbar */
+        @media (min-width: 768px) {
+            .navbar-kku {
+                padding: 0.8rem 1.2rem;
+            }
+            .navbar-kku .navbar-brand {
+                font-size: 1.2rem;
+            }
+            .navbar-kku .navbar-brand i {
+                font-size: 1.5rem;
+            }
+            .navbar-right .badge {
+                font-size: 0.75rem;
+            }
+            .navbar-right .btn {
+                font-size: 0.8rem;
+                padding: 0.4rem 0.8rem;
+            }
+            .navbar-text {
+                display: block;
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Main Container */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+            height: 100vh;
+            padding-bottom: 0; /* map uses full height on mobile/tablet */
+        }
+
+        /* Map Section */
+        .map-section {
+            flex: 1 1 auto;
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        #map {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* Stats Overlay on Map */
+        .stats-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.97);
+            padding: 0.5rem 0.6rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 500;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .stats-overlay .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.4rem 0.6rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            min-width: 52px;
+            min-height: 50px;
+        }
+
+        .stats-overlay .stat-badge {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--kku-primary);
+            line-height: 1.3;
+        }
+
+        .stats-overlay .stat-label {
+            font-size: 0.65rem;
+            color: #555;
+            font-weight: 600;
+            white-space: nowrap;
+            margin-top: 2px;
+        }
+
+        .stats-overlay .stat-item.pending .stat-badge { color: var(--danger); }
+        .stats-overlay .stat-item.progress .stat-badge { color: #e6a700; }
+        .stats-overlay .stat-item.resolved .stat-badge { color: var(--success); }
+
+        .badge-total { background: var(--kku-primary); }
+        .badge-pending { background: var(--danger); }
+        .badge-progress { background: var(--warning); color: #000 !important; }
+        .badge-resolved { background: var(--success); }
+
+        /* Floating Home Button (mobile/tablet) */
+        .btn-float-home {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 500;
+            border-radius: 999px;
+            padding: 0.5rem 0.9rem;
+            font-weight: 700;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            background: #fff;
+            border: 2px solid var(--kku-primary);
+            color: var(--kku-primary);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Toggle Buttons */
+        .toggle-btn {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.95);
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 501;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .toggle-btn:hover {
+            background: var(--kku-primary);
+            color: white;
+        }
+        /* ปุ่ม Filter - เมื่อเปิดอยู่จะขยับไปซ้ายล่างของ overlay */
+        .toggle-filter-btn {
+            top: 95px;
+            left: 130px; /* ขยับไปขวาของ filter overlay */
+        }
+        .toggle-filter-btn.collapsed {
+            left: 10px; /* เมื่อปิดกลับมาที่เดิม */
+        }
+        /* ปุ่ม Stats - เมื่อเปิดอยู่จะขยับไปซ้ายของ overlay */
+        .toggle-stats-btn {
+            top: 10px;
+            right: 200px; /* ขยับไปซ้ายของ stats overlay */
+        }
+        .toggle-stats-btn.collapsed {
+            right: 10px; /* เมื่อปิดกลับมาที่เดิม */
+        }
+        .filter-overlay.collapsed,
+        .stats-overlay.collapsed {
+            display: none;
+        }
+
+        /* Filter Overlay */
+        .filter-overlay {
+            position: absolute;
+            top: 95px;
+            left: 10px;
+            background: rgba(255,255,255,0.95);
+            padding: 0.4rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            z-index: 500;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            max-width: 110px;
+        }
+
+        .filter-btn {
+            background: white;
+            border: 2px solid #ddd;
+            color: #666;
+            padding: 0.4rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--kku-primary);
+            color: var(--kku-primary);
+        }
+
+        .filter-btn.active {
+            background: var(--kku-primary);
+            color: white;
+            border-color: var(--kku-primary);
+        }
+
+        /* Modal Styles */
+        .modal-content {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin: 0.5rem;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--kku-primary) 0%, var(--kku-secondary) 100%);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 15px 15px 0 0;
+        }
+
+        .modal-header .modal-title {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .modal-header .btn-close {
+            filter: brightness(0) invert(1);
+        }
+
+        .modal-body {
+            padding: 1rem;
+            max-height: 75vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 0.85rem;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--kku-primary);
+            margin-bottom: 0.4rem;
+            font-size: 0.85rem;
+            display: block;
+        }
+
+        .form-control, .form-select {
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 0.7rem 0.9rem;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            width: 100%;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--kku-primary);
+            box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.1);
+            outline: none;
+        }
+
+        /* Desktop Modal */
+        @media (min-width: 768px) {
+            .modal-content {
+                margin: 1rem auto;
+                max-width: 500px;
+            }
+            .modal-header {
+                padding: 1.25rem;
+            }
+            .modal-header .modal-title {
+                font-size: 1.1rem;
+            }
+            .modal-body {
+                padding: 1.5rem;
+            }
+            .form-label {
+                font-size: 0.95rem;
+            }
+        }
+
+        /* Buttons */
+        .btn-submit {
+            background: linear-gradient(135deg, var(--kku-primary) 0%, var(--kku-secondary) 100%);
+            border: none;
+            color: white;
+            padding: 0.85rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            width: 100%;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 69, 19, 0.3);
+            color: white;
+        }
+
+        /* Status Badges */
+        .incident-status {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        .status-waiting {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-processing {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .status-resolved {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        /* Toast Messages */
+        .toast-container {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 9999;
+            gap: 0.75rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toast {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-width: 280px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+
+        .toast.warning {
+            border-left: 4px solid var(--warning);
+        }
+
+        /* Responsive (mobile) */
+        @media (max-width: 768px) {
+            .filter-overlay {
+                top: 85px;
+                left: 8px;
+                padding: 0.3rem;
+                max-width: 95px;
+            }
+            .filter-btn {
+                padding: 0.25rem 0.4rem;
+                font-size: 0.65rem;
+            }
+            .stats-overlay {
+                top: 10px;
+                right: 10px;
+                padding: 0.4rem 0.5rem;
+                gap: 0.4rem;
+            }
+            .stats-overlay .stat-item {
+                min-width: 50px;
+                min-height: 48px;
+                padding: 0.35rem 0.5rem;
+            }
+            .stats-overlay .stat-badge {
+                font-size: 1.1rem;
+                line-height: 1.3;
+            }
+            .stats-overlay .stat-label {
+                font-size: 0.62rem;
+            }
+            /* ปุ่ม toggle สำหรับ mobile */
+            .toggle-filter-btn {
+                top: 85px;
+                left: 110px;
+            }
+            .toggle-filter-btn.collapsed {
+                left: 8px;
+            }
+            .toggle-stats-btn {
+                top: 10px;
+                right: 180px;
+            }
+            .toggle-stats-btn.collapsed {
+                right: 10px;
+            }
+        }
+
+        /* Desktop Adjustments: show top navbar */
+        @media (min-width: 1024px) {
+            .navbar-kku { display: block; }
+            .main-container { height: calc(100vh - var(--navbar-height)); }
+            #floatingHome { display: none; }
+        }
+
+        /* Safe area padding for notched devices */
+        @supports (padding: max(0px)) {
+            .navbar-kku {
+                padding-left: max(1rem, env(safe-area-inset-left));
+                padding-right: max(1rem, env(safe-area-inset-right));
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="navbar-kku">
+        <div class="navbar-content">
+            <div class="navbar-brand">
+                <i class="fas fa-shield-halved"></i>
+                <span>แดชบอร์ด</span>
+            </div>
+            <div class="navbar-right">
+                <span class="badge bg-light text-dark">
+                    <i class="fas fa-clock"></i> <span id="currentTime"></span>
+                </span>
+                <a href="/" class="btn btn-light" style="font-weight:600;color:#654321">
+                    <i class="fa-solid fa-home"></i> <span class="d-none d-sm-inline">หน้าแรก</span>
+                </a>
+            </div>
+        </div>
+        <div class="navbar-text">ระบบจัดการเหตุฉุกเฉิน มหาวิทยาลัยขอนแก่น</div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Map Section -->
+        <div class="map-section">
+            <div id="map"></div>
+            
+            <!-- Toggle Buttons -->
+            <button class="toggle-btn toggle-filter-btn" id="toggleFilterBtn" title="พับ/เปิด ตัวกรอง">
+                <i class="fas fa-filter"></i>
+            </button>
+            <button class="toggle-btn toggle-stats-btn" id="toggleStatsBtn" title="พับ/เปิด สถิติ">
+                <i class="fas fa-chart-bar"></i>
+            </button>
+
+            <!-- Filter Overlay -->
+            <div class="filter-overlay" id="filterOverlay">
+                <button class="filter-btn active" data-filter="all">ทั้งหมด</button>
+                <button class="filter-btn" data-filter="รอการดำเนินการ">รอดำเนินการ</button>
+                <button class="filter-btn" data-filter="กำลังดำเนินการ">กำลังดำเนินการ</button>
+            </div>
+
+            <!-- Stats Overlay -->
+            <div class="stats-overlay" id="statsOverlay">
+                <div class="stat-item">
+                    <span class="stat-badge" id="statTotal">0</span>
+                    <span class="stat-label">ทั้งหมด</span>
+                </div>
+                <div class="stat-item pending">
+                    <span class="stat-badge" id="statPending">0</span>
+                    <span class="stat-label">รอ</span>
+                </div>
+                <div class="stat-item progress">
+                    <span class="stat-badge" id="statProgress">0</span>
+                    <span class="stat-label">กำลัง</span>
+                </div>
+            </div>
+
+            <!-- Floating Home (mobile/tablet) -->
+            <a href="/" id="floatingHome" class="btn btn-float-home">
+                <i class="fa-solid fa-home"></i> หน้าแรก
+            </a>
+        </div>
+    </div>
+
+    <!-- Incident Detail Modal -->
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-info-circle"></i> รายละเอียดเหตุการณ์</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="detailContent"></div>
+                <div class="modal-body" id="chatSection" style="display:none">
+                    <div style="margin:8px 0;font-weight:700;color:var(--kku-primary)"><i class="fa-solid fa-comments"></i> แชทให้คำแนะนำ</div>
+                    <div id="chatMessages" style="max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:8px;padding:8px;background:#fafafa"></div>
+                    <div style="display:flex;gap:8px;margin-top:8px">
+                        <input type="text" id="chatInput" class="form-control" placeholder="พิมพ์คำแนะนำ..." />
+                        <button type="button" id="chatSend" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Status Modal -->
+    <div class="modal fade" id="updateStatusModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-edit"></i> อัปเดตสถานะ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="updateStatusForm">
+                        <input type="hidden" id="incidentId">
+                        
+                        <div class="form-group">
+                            <label class="form-label">สถานะใหม่ <span style="color: var(--danger);">*</span></label>
+                            <select class="form-select" id="newStatus" required>
+                                <option value="รอการดำเนินการ">🔴 รอการดำเนินการ</option>
+                                <option value="กำลังดำเนินการ">🟡 กำลังดำเนินการ</option>
+                                <option value="ดำเนินการแล้ว">🟢 ดำเนินการแล้ว</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">หมายเหตุเจ้าหน้าที่</label>
+                            <textarea class="form-control" id="officerNotes" rows="3" 
+                                placeholder="บันทึกรายละเอียดการดำเนินการ..."></textarea>
+                        </div>
+
+                        <button type="button" class="btn-submit" id="confirmUpdateStatus">
+                            <i class="fas fa-save"></i> บันทึกการเปลี่ยนแปลง
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // ====== Variables ======
+        let map, allIncidents = [];
+        let currentFilter = 'all';
+        const KKU_CENTER = [16.473, 102.823];
+        const INCIDENT_TYPES = {
+            accident: '🚗 อุบัติเหตุ',
+            medical: '➕ เหตุสุขภาพ',
+            conflict: '⚔️ ความขัดแย้ง',
+            fire: '🔥 ไฟไหม้',
+            help: '🆘 ขอความช่วยเหลือ'
+        };
+        const STATUS_MAP = {
+            'รอการดำเนินการ': 'waiting',
+            'กำลังดำเนินการ': 'processing',
+            'ดำเนินการแล้ว': 'resolved'
+        };
+
+        // ====== Initialize ======
+        function init() {
+            initMap();
+            loadIncidents();
+            initRealtime();
+            setupEventListeners();
+            updateClock();
+            setInterval(loadIncidents, 10000);
+        }
+
+        // ====== Map Functions ======
+        let markersLayer = L.layerGroup();
+        function initMap() {
+            map = L.map('map').setView(KKU_CENTER, 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+            markersLayer.addTo(map);
+        }
+
+        // ====== API Functions ======
+        async function loadIncidents() {
+            try {
+                const response = await fetch('/api/incidents');
+                const incidents = await response.json();
+                allIncidents = Array.isArray(incidents) ? incidents : [];
+                renderMarkers();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading incidents:', error);
+            }
+        }
+
+        let eventSource = null;
+        function initRealtime() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            try {
+                eventSource = new EventSource('/api/incidents/stream');
+                
+                eventSource.addEventListener('incident-created', (e) => {
+                    try {
+                        const incident = JSON.parse(e.data);
+                        // เพิ่มเข้า array ถ้ายังไม่มี
+                        if (!allIncidents.find(i => i.id === incident.id)) {
+                            allIncidents.push(incident);
+                        }
+                        // render markers และอัปเดตสถิติ
+                        renderMarkers();
+                        updateStats();
+                        // แสดง notification
+                        showRealtimeAlert('🆕 มีแจ้งเหตุใหม่!', incident);
+                        playNotificationSound();
+                    } catch (err) {
+                        console.error('Error parsing incident-created:', err);
+                        loadIncidents();
+                    }
+                });
+                
+                eventSource.addEventListener('incident-updated', (e) => {
+                    try {
+                        const incident = JSON.parse(e.data);
+                        // อัปเดตใน array
+                        const idx = allIncidents.findIndex(i => i.id === incident.id);
+                        if (idx >= 0) {
+                            allIncidents[idx] = incident;
+                        } else {
+                            allIncidents.push(incident);
+                        }
+                        renderMarkers();
+                        updateStats();
+                        showRealtimeAlert('📝 สถานะอัปเดต', incident);
+                    } catch (err) {
+                        console.error('Error parsing incident-updated:', err);
+                        loadIncidents();
+                    }
+                });
+                
+                eventSource.addEventListener('incident-deleted', (e) => {
+                    try {
+                        const deletedId = JSON.parse(e.data);
+                        allIncidents = allIncidents.filter(i => i.id !== deletedId);
+                        renderMarkers();
+                        updateStats();
+                        showToast('🗑️ เหตุการณ์ถูกลบแล้ว', 'info');
+                    } catch (err) {
+                        console.error('Error parsing incident-deleted:', err);
+                        loadIncidents();
+                    }
+                });
+
+                eventSource.onerror = () => {
+                    console.log('SSE connection error, reconnecting in 3s...');
+                    eventSource.close();
+                    setTimeout(initRealtime, 3000);
+                };
+            } catch (e) {
+                console.error('SSE not supported:', e);
+            }
+        }
+
+        // แสดง notification realtime สำหรับ dashboard
+        function showRealtimeAlert(title, incident) {
+            const typeText = INCIDENT_TYPES[incident.type] || incident.type;
+            showToast(`${title} - ${typeText}`, 'success');
+            
+            // ย้ายแผนที่ไปยังตำแหน่งใหม่
+            if (incident.latitude && incident.longitude) {
+                map.flyTo([incident.latitude, incident.longitude], 16, { duration: 1 });
+            }
+        }
+
+        // เล่นเสียงแจ้งเตือน
+        function playNotificationSound() {
+            try {
+                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleV4d');
+                audio.volume = 0.3;
+                audio.play().catch(() => {});
+            } catch (e) {}
+        }
+
+        // ====== Display Functions ======
+        function getFilteredIncidents() {
+            if (currentFilter === 'all') {
+                return allIncidents;
+            }
+            return allIncidents.filter(i => i.status === currentFilter);
+        }
+
+        function renderMarkers() {
+            markersLayer.clearLayers();
+            const visible = getFilteredIncidents();
+            // กรองเฉพาะที่ยังไม่เสร็จ (ไม่แสดงหมุดที่ดำเนินการแล้ว)
+            const activeIncidents = visible.filter(i => i.status !== 'ดำเนินการแล้ว');
+            activeIncidents.forEach(i => {
+                // กำหนดสีขอบตามสถานะ: รอ=แดง, กำลังดำเนินการ=เหลือง
+                const borderColor = i.status === 'กำลังดำเนินการ' ? '#ffc107' : '#dc3545';
+                const icon = L.divIcon({
+                    html: `<div style="font-size:20px;width:36px;height:36px;background:white;border-radius:50%;border:3px solid ${borderColor};box-shadow:0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">${getTypeEmoji(i.type)}</div>`,
+                    className: 'custom-div-icon', iconSize: [36, 36], iconAnchor: [18, 36]
+                });
+                const m = L.marker([i.latitude, i.longitude], { icon })
+                    .addTo(markersLayer)
+                    .on('click', () => showDetail(i.id));
+            });
+
+                // Realtime chat updates
+                eventSource.addEventListener('message-created', (e) => {
+                    try {
+                        const msg = JSON.parse(e.data);
+                        if (currentChatIncidentId && msg.incidentId === currentChatIncidentId) {
+                            const box = document.getElementById('chatMessages');
+                            const role = (msg.author || '').toString().toUpperCase();
+                            const isOfficer = role === 'OFFICER';
+                            const name = isOfficer ? 'เจ้าหน้าที่' : 'ผู้แจ้ง';
+                            const color = isOfficer ? '#0d6efd' : '#dc3545';
+                            const row = `<div style='margin:6px 0'><span style='font-weight:700;color:${color}'>${name}</span>: ${escapeHtml(msg.content)} <span style='color:#999;font-size:0.8em'>(${new Date(msg.createdAt).toLocaleTimeString('th-TH')})</span></div>`;
+                            box.insertAdjacentHTML('beforeend', row);
+                            box.scrollTop = box.scrollHeight;
+                        }
+                    } catch(err) {}
+                });
+        }
+
+        // ====== Chat Functions ======
+        let currentChatIncidentId = null;
+        async function loadMessages(incidentId) {
+            const box = document.getElementById('chatMessages');
+            try {
+                // เจ้าหน้าที่ต้องส่ง dashboard=true จึงจะได้สิทธิ์
+                const res = await fetch(`/api/incidents/${incidentId}/messages?dashboard=true`);
+                if (res.status === 403) {
+                    box.innerHTML = '<div style="color:#999;text-align:center">ไม่มีสิทธิ์ดูข้อความ</div>';
+                    return;
+                }
+                const messages = await res.json();
+                if (!Array.isArray(messages)) {
+                    box.innerHTML = '<div style="color:#999;text-align:center">ไม่สามารถโหลดข้อความได้</div>';
+                    return;
+                }
+                box.innerHTML = messages.map(m => {
+                    const role = (m.author || '').toString().toUpperCase();
+                    const isOfficer = role === 'OFFICER';
+                    const name = isOfficer ? 'เจ้าหน้าที่' : 'ผู้แจ้ง';
+                    const color = isOfficer ? '#0d6efd' : '#dc3545';
+                    return `<div style='margin:6px 0'><span style='font-weight:700;color:${color}'>${name}</span>: ${escapeHtml(m.content)} <span style='color:#999;font-size:0.8em'>(${new Date(m.createdAt).toLocaleTimeString('th-TH')})</span></div>`;
+                }).join('');
+                box.scrollTop = box.scrollHeight;
+            } catch(e) {
+                box.innerHTML = '<div style="color:#999;text-align:center">เกิดข้อผิดพลาดในการโหลดข้อความ</div>';
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>\"]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
+        }
+
+        function updateStats() {
+            const pending = allIncidents.filter(i => i.status === 'รอการดำเนินการ').length;
+            const progress = allIncidents.filter(i => i.status === 'กำลังดำเนินการ').length;
+            // ทั้งหมด = รอ + กำลังดำเนินการ (ไม่นับที่เสร็จแล้ว)
+            const total = pending + progress;
+
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statPending').textContent = pending;
+            document.getElementById('statProgress').textContent = progress;
+        }
+
+        function getTypeEmoji(t) {
+            switch (t) {
+                case 'accident': return '🚗';
+                case 'medical': return '➕';
+                case 'conflict': return '⚔️';
+                case 'fire': return '🔥';
+                case 'help': return '🆘';
+                default: return '📍';
+            }
+        }
+
+        // ====== Utility Functions ======
+        function showDetail(id) {
+            const incident = allIncidents.find(i => i.id === id);
+            if (!incident) return;
+            
+            const html = `
+                <div style="line-height: 1.8;">
+                    <p><strong>ประเภท:</strong> ${INCIDENT_TYPES[incident.type] || incident.type}</p>
+                    <p><strong>รายละเอียด:</strong> ${incident.description || '-'}</p>
+                    <p><strong>สถานะ:</strong> <span class="incident-status status-${STATUS_MAP[incident.status] || 'waiting'}">${incident.status}</span></p>
+                    <p><strong>ระดับรุนแรง:</strong> ${incident.severityLevel || '-'}</p>
+                    <p><strong>ผู้แจ้ง:</strong> ${incident.reporter || '-'}</p>
+                    <p><strong>เบอร์ติดต่อ:</strong> ${incident.reporterContact || '-'}</p>
+                    <p><strong>เวลาแจ้ง:</strong> ${new Date(incident.createdAt).toLocaleString('th-TH')}</p>
+                    ${incident.imageUrl ? `<div style='margin:8px 0'><img src='${incident.imageUrl}' style='max-width:100%;border-radius:8px'/></div>` : ''}
+                    ${incident.officerNotes ? `<p><strong>หมายเหตุเจ้าหน้าที่:</strong> ${incident.officerNotes}</p>` : ''}
+                    <div style="margin-top:15px;display:flex;gap:8px;flex-wrap:wrap;">
+                        <a class="btn btn-sm btn-outline-primary" href="https://www.google.com/maps?q=${incident.latitude},${incident.longitude}" target="_blank">
+                            <i class="fa-solid fa-location-arrow"></i> นำทาง
+                        </a>
+                        <button class="btn btn-sm btn-warning" onclick="openUpdateModal(${incident.id})">
+                            <i class="fas fa-edit"></i> อัปเดตสถานะ
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('detailContent').innerHTML = html;
+            currentChatIncidentId = id;
+            document.getElementById('chatSection').style.display = 'block';
+            loadMessages(id);
+            new bootstrap.Modal(document.getElementById('detailModal')).show();
+        }
+
+        function openUpdateModal(id) {
+            // Close detail modal if open
+            const detailModal = bootstrap.Modal.getInstance(document.getElementById('detailModal'));
+            if (detailModal) detailModal.hide();
+
+            const incident = allIncidents.find(i => i.id === id);
+            if (!incident) return;
+
+            document.getElementById('incidentId').value = id;
+            document.getElementById('newStatus').value = incident.status;
+            document.getElementById('officerNotes').value = incident.officerNotes || '';
+            
+            new bootstrap.Modal(document.getElementById('updateStatusModal')).show();
+        }
+
+        async function submitStatusUpdate() {
+            const incidentId = document.getElementById('incidentId').value;
+            const newStatus = document.getElementById('newStatus').value;
+            const notes = document.getElementById('officerNotes').value;
+
+            if (!newStatus) {
+                showToast('กรุณาเลือกสถานะ', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/incidents/${incidentId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus, notes: notes })
+                });
+
+                if (response.ok) {
+                    showToast('อัปเดตสถานะเรียบร้อย', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('updateStatusModal')).hide();
+                    loadIncidents();
+                } else {
+                    throw new Error('Update failed');
+                }
+            } catch (error) {
+                showToast('เกิดข้อผิดพลาดในการอัปเดต', 'error');
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            document.getElementById('toastContainer').appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const el = document.getElementById('currentTime');
+            if (el) el.textContent = now.toLocaleString('th-TH');
+            setTimeout(updateClock, 1000);
+        }
+
+        // ====== Event Listeners ======
+        function setupEventListeners() {
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentFilter = e.target.dataset.filter;
+                    renderMarkers();
+                });
+            });
+
+            // Toggle buttons for filter and stats
+            document.getElementById('toggleFilterBtn').addEventListener('click', () => {
+                const filterOverlay = document.getElementById('filterOverlay');
+                const btn = document.getElementById('toggleFilterBtn');
+                filterOverlay.classList.toggle('collapsed');
+                btn.classList.toggle('collapsed');
+                // เปลี่ยน icon
+                btn.innerHTML = filterOverlay.classList.contains('collapsed') 
+                    ? '<i class="fas fa-filter"></i>' 
+                    : '<i class="fas fa-times"></i>';
+            });
+
+            document.getElementById('toggleStatsBtn').addEventListener('click', () => {
+                const statsOverlay = document.getElementById('statsOverlay');
+                const btn = document.getElementById('toggleStatsBtn');
+                statsOverlay.classList.toggle('collapsed');
+                btn.classList.toggle('collapsed');
+                // เปลี่ยน icon
+                btn.innerHTML = statsOverlay.classList.contains('collapsed') 
+                    ? '<i class="fas fa-chart-bar"></i>' 
+                    : '<i class="fas fa-times"></i>';
+            });
+
+            // Chat send - เจ้าหน้าที่ต้องส่ง dashboard=true
+            document.getElementById('chatSend').addEventListener('click', async () => {
+                const input = document.getElementById('chatInput');
+                const text = input.value.trim();
+                if (!text || !currentChatIncidentId) return;
+                try {
+                    const res = await fetch(`/api/incidents/${currentChatIncidentId}/messages?dashboard=true`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: text })
+                    });
+                    if (res.ok) {
+                        input.value = '';
+                        loadMessages(currentChatIncidentId);
+                    }
+                } catch(e) {}
+            });
+
+            // Update status button
+            document.getElementById('confirmUpdateStatus').addEventListener('click', submitStatusUpdate);
+        }
+
+        // Start
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

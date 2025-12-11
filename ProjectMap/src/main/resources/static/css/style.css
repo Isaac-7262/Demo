@@ -1,0 +1,165 @@
+/* Global Styles */
+:root {
+    --kku-primary: #8B4513;
+    --kku-secondary: #D2691E;
+    --kku-light: #F5E6D3;
+    --kku-dark: #654321;
+    --kku-accent: #FF8C00;
+    --transition-smooth: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+* {
+    font-family: 'Prompt', 'Segoe UI', sans-serif;
+}
+
+/* Animations */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--kku-light);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--kku-secondary);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--kku-primary);
+}
+
+/* Utility Classes */
+.text-kku-primary {
+    color: var(--kku-primary);
+}
+
+.text-kku-secondary {
+    color: var(--kku-secondary);
+}
+
+.bg-kku-light {
+    background-color: var(--kku-light);
+}
+
+.border-kku-secondary {
+    border-color: var(--kku-secondary) !important;
+}
+
+.transition-smooth {
+    transition: var(--transition-smooth);
+}
+
+.shadow-kku {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Badge Styles */
+.badge-status {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.badge-urgent {
+    background: linear-gradient(45deg, #dc3545, #fd7e14);
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+/* Loading Spinner */
+.spinner-custom {
+    border: 3px solid var(--kku-light);
+    border-top: 3px solid var(--kku-secondary);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    animation: slideDown 0.3s ease-out;
+}
+
+.toast {
+    background: white;
+    border-left: 4px solid var(--kku-secondary);
+    padding: 1rem 1.5rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideDown 0.3s ease-out;
+}
+
+.toast.success {
+    border-left-color: #28a745;
+}
+
+.toast.error {
+    border-left-color: #dc3545;
+}
+
+.toast.warning {
+    border-left-color: #ffc107;
+}
+
+/* Responsive Utilities */
+@media (max-width: 768px) {
+    :root {
+        font-size: 14px;
+    }
+
+    .text-responsive-hide {
+        display: none !important;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+}

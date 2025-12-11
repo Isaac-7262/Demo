@@ -1,0 +1,15 @@
+org\kku\exception\GlobalExceptionHandler$ErrorResponse.class
+org\kku\service\IncidentEventsService.class
+org\kku\config\SecurityConfig.class
+org\kku\web\IncidentController.class
+org\kku\exception\ResourceNotFoundException.class
+org\kku\exception\GlobalExceptionHandler.class
+org\kku\model\Incident.class
+org\kku\model\Message.class
+org\kku\repo\MessageRepository.class
+org\kku\service\IncidentService.class
+org\kku\repo\IncidentRepository.class
+org\kku\config\UploadConfig.class
+org\kku\web\FriendlyLinkController.class
+org\kku\service\IncidentService$IncidentStats.class
+org\kku\KkuIncidentMapApplication.class

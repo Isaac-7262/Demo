@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mobile Demo (Removed)</title>
+    <style>body{font-family:system-ui,Segoe UI,Prompt,Arial;margin:40px;color:#222} .box{border:1px solid #ddd;border-radius:12px;padding:24px;max-width:520px} .muted{color:#666}</style>
+</head>
+<body>
+    <div class="box">
+        <h1>หน้าจำลองมือถือ ถูกนำออกแล้ว</h1>
+        <p class="muted">กรุณาใช้งานหน้าหลักที่ <a href="/">/</a></p>
+    </div>
+</body>
+</html>
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Phone Frame */
+        .phone-frame {
+            width: 380px;
+            height: 812px;
+            background: #000;
+            border: 12px solid #000;
+            border-radius: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Notch */
+        .phone-frame::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 25px;
+            background: #000;
+            border-radius: 0 0 20px 20px;
+            z-index: 10;
+        }
+
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative; /* enable bottom navbar inside frame */
+        }
+
+        /* Header */
+        .navbar {
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
+            color: white;
+            padding: 12px 20px;
+            padding-top: 18px;
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+        }
+
+        .navbar-title {
+            font-weight: 700;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .navbar-subtitle {
+            font-size: 12px;
+            margin-top: 4px;
+            opacity: 0.9;
+        }
+
+        /* Main Container */
+        .main {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 72px; /* keep above bottom navbar */
+        }
+
+        .map-section {
+            height: 35%;
+            background: linear-gradient(135deg, #e8e8e8 0%, #d8d8d8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .map-placeholder {
+            text-align: center;
+            color: #999;
+        }
+
+        .map-placeholder i {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        .map-placeholder p {
+            font-size: 12px;
+        }
+
+        .content {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+        }
+
+        /* Alert Box */
+        .alert-box {
+            background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+            color: white;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .alert-box strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        /* Report Button */
+        .btn-report {
+            background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            width: 100%;
+            margin-bottom: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* Filter Section */
+        .filter-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #8B4513;
+            margin-bottom: 8px;
+            margin-top: 8px;
+        }
+
+        .filter-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .filter-btn {
+            background: white;
+            border: 2px solid #ddd;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .filter-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Stats */
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #eee;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #8B4513;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        /* Incidents List */
+        .incidents-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #8B4513;
+            margin-bottom: 8px;
+            margin-top: 8px;
+        }
+
+        .incident-item {
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 4px solid #D2691E;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .incident-item:active {
+            transform: scale(0.98);
+        }
+
+        .incident-type {
+            display: inline-block;
+            background: #F5E6D3;
+            color: #8B4513;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .incident-desc {
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+            line-height: 1.2;
+        }
+
+        .incident-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #999;
+        }
+
+        .status-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        /* Scrollbar */
+        .content::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .content::-webkit-scrollbar-thumb {
+            background: #D2691E;
+            border-radius: 2px;
+        }
+
+        .info-text {
+            background: #f0f0f0;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 12px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .info-text strong {
+            color: #8B4513;
+            display: block;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="screen">
+            <!-- Header -->
+            <div class="navbar">
+                <div class="navbar-title">
+                    <span>⚠️</span>
+                    <span>KKU Safe</span>
+                </div>
+                <div class="navbar-subtitle">ระบบแจ้งเหตุฉุกเฉินมหาวิทยาลัยขอนแก่น</div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="main">
+                <!-- Map Section -->
+                <div class="map-section">
+                    <div class="map-placeholder">
+                        <div style="font-size: 40px;">🗺️</div>
+                        <p>กดเลือกตำแหน่ง</p>
+                    </div>
+                </div>
+
+                <!-- Content Section -->
+                <div class="content">
+                    <!-- Alert -->
+                    <div class="alert-box">
+                        <strong>🔔 เหตุสำคัญ</strong>
+                        กดปุ่ม "แจ้งเหตุ" เพื่อส่งตำแหน่งให้เจ้าหน้าที่
+                    </div>
+
+                    <!-- Report Button -->
+                    <button class="btn-report">
+                        <span>➕</span>
+                        <span>แจ้งเหตุ</span>
+                    </button>
+
+                    <!-- Filters -->
+                    <div class="filter-title">🔍 ประเภทเหตุการณ์</div>
+                    <div class="filter-buttons">
+                        <button class="filter-btn">ทั้งหมด</button>
+                        <button class="filter-btn">🚗 อุบัติเหตุ</button>
+                        <button class="filter-btn">⚕️ สุขภาพ</button>
+                        <button class="filter-btn">⚔️ ความขัดแย้ง</button>
+                        <button class="filter-btn">🔥 ไฟไหม้</button>
+                        <button class="filter-btn">🆘 ขอความช่วย</button>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-value">7</div>
+                            <div class="stat-label">ทั้งหมด</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">3</div>
+                            <div class="stat-label">รอจัดการ</div>
+                        </div>
+                    </div>
+
+                    <!-- Incidents -->
+                    <div class="incidents-title">📋 เหตุการณ์ล่าสุด</div>
+
+                    <div class="incident-item">
+                        <div class="incident-type">🚗 อุบัติเหตุ</div>
+                        <div class="incident-desc">รถชนที่ประตูหลัก อาคาร 1</div>
+                        <div class="incident-meta">
+                            <span>5 นาที</span>
+                            <span class="status-badge">รอการดำเนินการ</span>
+                        </div>
+                    </div>
+
+                    <div class="incident-item">
+                        <div class="incident-type">⚕️ เหตุสุขภาพ</div>
+                        <div class="incident-desc">นักศึกษาล้มลงบริเวณห้องสมุด</div>
+                        <div class="incident-meta">
+                            <span>12 นาที</span>
+                            <span class="status-badge">กำลังดำเนินการ</span>
+                        </div>
+                    </div>
+
+                    <div class="incident-item">
+                        <div class="incident-type">⚔️ ความขัดแย้ง</div>
+                        <div class="incident-desc">มีการทะเลาะวิวาทบริเวณลานกลาง</div>
+                        <div class="incident-meta">
+                            <span>18 นาที</span>
+                            <span class="status-badge">รอการดำเนินการ</span>
+                        </div>
+                    </div>
+
+                    <!-- Info -->
+                    <div class="info-text">
+                        <strong>💡 วิธีใช้:</strong>
+                        ✓ กดที่แมพเพื่อเลือกตำแหน่ง<br/>
+                        ✓ กดปุ่มแจ้งเหตุเพื่อกรอกรายละเอียด<br/>
+                        ✓ กดเหตุเพื่อดูรายละเอียดเพิ่มเติม<br/>
+                        ✓ ทะบายใจที่เป็นปลอดภัย!
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

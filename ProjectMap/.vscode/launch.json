@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-KkuIncidentMapApplication<kku-incident-map>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "org.kku.KkuIncidentMapApplication",
+            "projectName": "kku-incident-map",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
